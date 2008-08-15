@@ -7,6 +7,7 @@ use base qw(Class::Accessor::Fast);
 
 __PACKAGE__->mk_accessors(qw/resolver ua parser/);
 
+use Carp::Clan;
 use HTTP::Request;
 use LWP::UserAgent;
 use URI;
@@ -14,15 +15,15 @@ use XML::LibXML;
 
 =head1 NAME
 
-XRI::Resolution::Lite - The LightWeight client module for XRI Resolution
+XRI::Resolution::Lite - The Lightweight client module for XRI Resolution
 
 =head1 VERSION
 
-version 0.01
+version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my %param_map = (
     format => '_xrd_r',
@@ -82,9 +83,10 @@ sub new {
     return $self;
 }
 
-=head2 resolve($qxri, $args)
+=head2 resolve($qxri, \%params, \%media_flags)
 
-If a resolution is succeed, return <XML::LibXML::Document> object. if not succeed then return undef.
+When type parameter is substituted "application/xrds+xml" or "application/xrd+xml", the result would be returned as L<XML::LibXML::Document> object.
+Substituted "text/uri-list" to type parameter, the result would be returned as url list ARRAY or ARRAYREF.
 
 =over 2
 
@@ -93,11 +95,14 @@ If a resolution is succeed, return <XML::LibXML::Document> object. if not succee
 Query XRI string. For example :
 
   =zigorou
-  @perlmongers
+  @linksafe
+  @id*zigorou
 
-=item $args
+=item $params
 
 This param must be HASH reference. Available 3 fields.
+See Section 3.3 of XRI Resolution 2.0.
+L<http://docs.oasis-open.org/xri/xri-resolution/2.0/specs/cd03/xri-resolution-V2.0-cd-03.html#_Ref129424065>
 
 =over 2
 
@@ -115,34 +120,114 @@ Service Media Type. This param would be '_xrd_m' query parameter.
 
 =back
 
+=item $media_flags
+
+If you want to specify flag on or off, then substitute to 1 as true, 0 as false.
+
+=over 2
+
+=item https
+
+Specifies use of HTTPS trusted resolution. default value is 0.
+
+=item saml
+
+Specifies use of SAML trusted resolution. default value is 0.
+
+=item refs
+
+Specifies whether Refs should be followed during resolution (by default they are followed), default value is 1.
+
+=item sep
+
+Specifies whether service endpoint selection should be performed. default value is 0.
+
+=item nodefault_t
+
+Specifies whether a default match on a Type service endpoint selection element is allowed. default value is 1.
+
+=item nodefault_p
+
+Specifies whether a default match on a Path service endpoint selection element is allowed. default value is 1.
+
+=item nodefault_m
+
+Specifies whether a default match on a MediaType service endpoint selection element is allowed. default value is 1.
+
+=item uric
+
+Specifies whether a resolver should automatically construct service endpoint URIs. default value is 0.
+
+=item cid
+
+Specifies whether automatic canonical ID verifi-cation should performed. default value is 1
+
+=back
+
 =back
 
 =cut
 
 sub resolve {
-    my ($self, $qxri, $args) = @_;
+    my ($self, $qxri, $params, $media_flags) = @_;
+
+    $params ||= {};
+    $media_flags ||= {};
 
     $qxri =~ s|^xri://||; ### normalize
 
     my %query = ();
     %query = (
         _xrd_r => 'application/xrds+xml',
-        map { ( $param_map{$_}, $args->{$_} ) } keys %$args
+        map { ( $param_map{$_}, $params->{$_} ) } keys %$params
     );
+
+    my %flags = (
+        https => 0,
+        saml => 0,
+        refs => 1,
+        sep => 0,
+        nodefault_t => 1,
+        nodefault_p => 1,
+        nodefault_m => 1,
+        uric => 0,
+        cid => 1,
+    );
+
+    $query{'_xrd_r'} .= ';' . 
+        join ';' => 
+            map { $_->[0] . '=' . $_->[1] ? 'true' : 'false' }
+            map { [$_, $media_flags->{$_} || $flags{$_}] }
+            keys %flags;
 
     my $hxri = $self->resolver->clone;
     $hxri->path($qxri);
     $hxri->query_form(%query);
 
     my $req = HTTP::Request->new(GET => $hxri);
-    $req->header(Accept => $args->{type} || 'application/xrds+xml');
+    $req->header(Accept => $params->{type} || 'application/xrds+xml');
 
-    my $res = $self->ua->request($req);
+    my $res;
 
-    return unless ($res->is_success);
+    eval {
+        $res = $self->ua->request($req);
+    };
+    if (my $err = $@) {
+        $@ = undef;
+        croak($err);
+    }
 
-    my $doc = $self->parser->parse_string($res->content);
-    return $doc;
+    croak($res->status_line) unless ($res->is_success); ### HTTP error
+    croak($res->content) if ($res->header('Content-Type') =~ m#^text/plain#); ### Invalid Content-Type
+
+    unless (defined $params->{format} && $params->{format} eq 'text/uri-list') { ## XRDS or XRD format
+        my $doc = $self->parser->parse_string($res->content);
+        return $doc;
+    }
+    else { ## URL List format 
+        my @url_list = split "\n" => $res->content;
+        wantarray ? @url_list : \@url_list;
+    }
 }
 
 =head1 SEE ALSO

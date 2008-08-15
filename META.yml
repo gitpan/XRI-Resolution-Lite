@@ -1,9 +1,10 @@
 --- 
-abstract: The LightWeight client module for XRI Resolution
-author: 
-  - Toru Yamaguchi <zigorou@cpan.org>
+abstract: The Lightweight client module for XRI Resolution
+author: Toru Yamaguchi <zigorou@cpan.org>
+build_requires: 
+  Test::Base: 0
 distribution_type: module
-generated_by: Module::Install version 0.68
+generated_by: Module::Install version 0.650
 license: perl
 meta-spec: 
   url: http://module-build.sourceforge.net/META-spec-v1.3.html
@@ -14,10 +15,11 @@ no_index:
     - inc
     - t
 requires: 
+  Carp::Clan: 0
   Class::Accessor::Fast: 0
   HTTP::Request: 0
   LWP::UserAgent: 0
   URI: 0
   XML::LibXML: 0
   XML::LibXML::XPathContext: 0
-version: 0.01
+version: 0.02
