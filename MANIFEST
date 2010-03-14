@@ -1,7 +1,7 @@
+.gitignore
 Changes
-inc/Module/AutoInstall.pm
 inc/Module/Install.pm
-inc/Module/Install/AutoInstall.pm
+inc/Module/Install/AuthorTests.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
 inc/Module/Install/Fetch.pm
@@ -19,10 +19,12 @@ inc/Test/Builder/Module.pm
 inc/Test/More.pm
 lib/XRI/Resolution/Lite.pm
 Makefile.PL
-MANIFEST
-META.yml			# Will be created by "make dist"
+MANIFEST			This list of files
+META.yml
 README
-t/00-load.t
+t/00_compile.t
 t/01-resolve.t
-t/pod-coverage.t
-t/pod.t
+xt/01_podspell.t
+xt/02_perlcritic.t
+xt/03_pod.t
+xt/perlcriticrc

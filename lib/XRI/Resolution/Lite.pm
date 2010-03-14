@@ -19,16 +19,16 @@ XRI::Resolution::Lite - The Lightweight client module for XRI Resolution
 
 =head1 VERSION
 
-version 0.02
+version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 my %param_map = (
     format => '_xrd_r',
-    type => '_xrd_t',
-    media => '_xrd_m',
+    type   => '_xrd_t',
+    media  => '_xrd_m',
 );
 
 =head1 SYNOPSIS
@@ -69,13 +69,16 @@ If this param is omitted, using XRI Global Proxy Resolver, "http://xri.net/", as
 =cut
 
 sub new {
-    my ($class, $args) = @_;
+    my ( $class, $args ) = @_;
 
-    $args = {
+    $args ||= +{};
+    $args = +{
         ua => $args->{ua} || LWP::UserAgent->new,
-        resolver => ($args->{resolver}) ? 
-            ((UNIVERSAL::isa($args->{resolver}, 'URI')) ? $args->{resolver} : URI->new($args->{resolver})) :
-            URI->new('http://xri.net/'),
+        resolver => ( $args->{resolver} )
+        ? ( UNIVERSAL::isa( $args->{resolver}, 'URI' )
+            ? $args->{resolver}
+            : URI->new( $args->{resolver} ) )
+        : URI->new('http://xri.net/'),
         parser => XML::LibXML->new,
     };
 
@@ -169,12 +172,12 @@ Specifies whether automatic canonical ID verifi-cation should performed. default
 =cut
 
 sub resolve {
-    my ($self, $qxri, $params, $media_flags) = @_;
+    my ( $self, $qxri, $params, $media_flags ) = @_;
 
-    $params ||= {};
+    $params      ||= {};
     $media_flags ||= {};
 
-    $qxri =~ s|^xri://||; ### normalize
+    $qxri =~ s|^xri://||;    ### normalize
 
     my %query = ();
     %query = (
@@ -183,48 +186,48 @@ sub resolve {
     );
 
     my %flags = (
-        https => 0,
-        saml => 0,
-        refs => 1,
-        sep => 0,
+        https       => 0,
+        saml        => 0,
+        refs        => 1,
+        sep         => 0,
         nodefault_t => 1,
         nodefault_p => 1,
         nodefault_m => 1,
-        uric => 0,
-        cid => 1,
+        uric        => 0,
+        cid         => 1,
     );
 
-    $query{'_xrd_r'} .= ';' . 
-        join ';' => 
-            map { $_->[0] . '=' . $_->[1] ? 'true' : 'false' }
-            map { [$_, $media_flags->{$_} || $flags{$_}] }
-            keys %flags;
+    $query{'_xrd_r'} .=
+      ';' . join ';' => map { $_->[0] . '=' . $_->[1] ? 'true' : 'false' }
+      map { [ $_, $media_flags->{$_} || $flags{$_} ] }
+      keys %flags;
 
     my $hxri = $self->resolver->clone;
     $hxri->path($qxri);
     $hxri->query_form(%query);
 
-    my $req = HTTP::Request->new(GET => $hxri);
-    $req->header(Accept => $params->{type} || 'application/xrds+xml');
+    my $req = HTTP::Request->new( GET => $hxri );
+    $req->header( Accept => $params->{type} || 'application/xrds+xml' );
 
-    my $res;
+    my ( $res, $e );
 
-    eval {
-        $res = $self->ua->request($req);
-    };
-    if (my $err = $@) {
+    eval { $res = $self->ua->request($req); };
+    if ( $e = $@ ) {
         $@ = undef;
-        croak($err);
+        croak($e);
     }
 
-    croak($res->status_line) unless ($res->is_success); ### HTTP error
-    croak($res->content) if ($res->header('Content-Type') =~ m#^text/plain#); ### Invalid Content-Type
+    croak( $res->status_line ) unless ( $res->is_success );    ### HTTP error
+    croak( $res->content )
+      if ( $res->header('Content-Type') =~ m#^text/plain# )
+      ;    ### Invalid Content-Type
 
-    unless (defined $params->{format} && $params->{format} eq 'text/uri-list') { ## XRDS or XRD format
-        my $doc = $self->parser->parse_string($res->content);
+    unless ( defined $params->{format} && $params->{format} eq 'text/uri-list' )
+    {      ## XRDS or XRD format
+        my $doc = $self->parser->parse_string( $res->content );
         return $doc;
     }
-    else { ## URL List format 
+    else {    ## URL List format
         my @url_list = split "\n" => $res->content;
         wantarray ? @url_list : \@url_list;
     }
@@ -260,4 +263,4 @@ under the same terms as Perl itself.
 
 =cut
 
-1; # End of XRI::Resolution::Lite
+1;    # End of XRI::Resolution::Lite
