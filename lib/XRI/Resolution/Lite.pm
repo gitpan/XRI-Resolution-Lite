@@ -2,12 +2,11 @@ package XRI::Resolution::Lite;
 
 use strict;
 use warnings;
-
-use base qw(Class::Accessor::Fast);
+use parent qw(Class::Accessor::Fast);
 
 __PACKAGE__->mk_accessors(qw/resolver ua parser/);
 
-use Carp::Clan;
+use Carp;
 use HTTP::Request;
 use LWP::UserAgent;
 use URI;
@@ -19,11 +18,11 @@ XRI::Resolution::Lite - The Lightweight client module for XRI Resolution
 
 =head1 VERSION
 
-version 0.03
+version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 my %param_map = (
     format => '_xrd_r',
@@ -60,7 +59,7 @@ This param must be HASH reference. Available 2 fields.
 =item resolver
 
 (Optional) URI string of XRI Proxy Resolver.
-If this param is omitted, using XRI Global Proxy Resolver, "http://xri.net/", as resover.
+If this param is omitted, using XRI Global Proxy Resolver, "http://xri.net/", as resolver.
 
 =back 
 
@@ -163,7 +162,7 @@ Specifies whether a resolver should automatically construct service endpoint URI
 
 =item cid
 
-Specifies whether automatic canonical ID verifi-cation should performed. default value is 1
+Specifies whether automatic canonical ID verification should performed. default value is 1
 
 =back
 
